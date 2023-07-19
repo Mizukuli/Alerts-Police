@@ -1,4 +1,4 @@
-ESX = nil
+-- ESX = nil
 local ConfigLoaded = false
 local Config = {}
 local gunshotBlipData = {}
@@ -20,7 +20,7 @@ requestConfig()
 
 Citizen.CreateThread(function()
     while not ESX do
-        TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
+        ESX = exports["es_extended"]:getSharedObject()
         Citizen.Wait(0)
     end
     while not ConfigLoaded or not ESX do
