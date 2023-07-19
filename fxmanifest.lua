@@ -3,7 +3,7 @@ game 'gta5'
 
 author 'Mizukulii#2227'
 description 'Système d\'alerte de la police'
-version '1.0.0'
+version '1.0.1'
 
 files {
     'sounds/dispatch.ogg',
