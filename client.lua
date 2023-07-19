@@ -79,11 +79,20 @@ local function playUrgencySound(urgency)
     playSound(soundFile)
 end
 
-local function alertPoliceOnGunshot(weaponHash)
---    print("Envoi de l'alerte de coup de feu au serveur")
-    local playerPed = PlayerPedId()
-    local coords = GetEntityCoords(playerPed)
+local lastGunshotTimestamps = {}
 
+local function alertPoliceOnGunshot(weaponHash)
+    local playerPed = PlayerPedId()
+    local playerId = GetPlayerServerId(PlayerId())
+    local currentTimestamp = GetGameTimer()
+
+    if lastGunshotTimestamps[playerId] and (currentTimestamp - lastGunshotTimestamps[playerId] < Config.GunshotAlertCooldown) then
+        return
+    end
+
+    lastGunshotTimestamps[playerId] = currentTimestamp
+
+    local coords = GetEntityCoords(playerPed)
     local weapon = ESX.GetWeaponFromHash(weaponHash)
     if weapon and weapon.label then
         local weaponLabel = weapon.label
@@ -93,13 +102,8 @@ local function alertPoliceOnGunshot(weaponHash)
     end
 end
 
-Citizen.CreateThread(function()
-    local smallWeapons = {
-        [GetHashKey('WEAPON_PISTOL')] = true,
-        [GetHashKey('WEAPON_PISTOL50')] = true,
-        [GetHashKey('WEAPON_COMBATPISTOL')] = true,
-    }
 
+Citizen.CreateThread(function()
     while true do
         local playerPed = PlayerPedId()
         local weaponHash = GetSelectedPedWeapon(playerPed)
@@ -110,11 +114,7 @@ Citizen.CreateThread(function()
             end
         end
 
-        if smallWeapons[weaponHash] then
-            Citizen.Wait(100)
-        else
-            Citizen.Wait(300)
-        end
+        Citizen.Wait(100)
     end
 end)
 
@@ -240,6 +240,30 @@ AddEventHandler('police_alerts:receiveRobberyAlert', function(alertMessage, loca
 end)
 
 
+function GetModelNameFromHash(modelHash)
+    if modelHash == nil or type(modelHash) ~= "number" then
+        return "CARNOTFOUND"
+    end
+
+    local modelName
+
+    if IsModelInCdimage(modelHash) then
+        modelName = GetLabelText(GetDisplayNameFromVehicleModel(modelHash))
+
+        if modelName == "NULL" or modelName == "" then
+            modelName = GetDisplayNameFromVehicleModel(modelHash)
+        end
+
+        if modelName == "NULL" or modelName == "" then
+            modelName = "CARNOTFOUND"
+        end
+    else
+        modelName = "CARNOTFOUND"
+    end
+
+    return modelName
+end
+
 Citizen.CreateThread(function()
     while true do
         Citizen.Wait(3000)
@@ -249,15 +273,19 @@ Citizen.CreateThread(function()
         local isPlayerWhitelisted = isPlayerPolice()
 
         if (IsPedTryingToEnterALockedVehicle(playerPed) or IsPedJacking(playerPed)) then
-            local vehicle = GetVehiclePedIsIn(playerPed, true)
+            local vehicle = GetVehiclePedIsTryingToEnter(playerPed)
 
             if vehicle and ((isPlayerWhitelisted and Config.ShowCopsMisbehave) or not isPlayerWhitelisted) then
                 local plate = ESX.Math.Trim(GetVehicleNumberPlateText(vehicle))
 
                 ESX.TriggerServerCallback('police_alerts:isVehicleOwner', function(owner)
                     if not owner then
-                        local vehicleName = GetDisplayNameFromVehicleModel(GetEntityModel(vehicle))
+                        local modelHash = GetEntityModel(vehicle)
+                        local vehicleName = GetModelNameFromHash(modelHash)
                         local streetName = GetStreetNameFromHashKey(GetStreetNameAtCoord(playerCoords.x, playerCoords.y, playerCoords.z))
+
+--                        print("modelHash : " .. modelHash)
+--                        print("vehicleName : " .. vehicleName)
                         
                         DecorSetInt(playerPed, 'isOutlaw', 2)
                         
