@@ -239,7 +239,6 @@ AddEventHandler('police_alerts:receiveRobberyAlert', function(alertMessage, loca
     end)
 end)
 
-
 function GetModelNameFromHash(modelHash)
     if modelHash == nil or type(modelHash) ~= "number" then
         return "CARNOTFOUND"
