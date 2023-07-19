@@ -38,14 +38,10 @@ end)
 
 RegisterServerEvent('police_alerts:carJackInProgress')
 AddEventHandler('police_alerts:carJackInProgress', function(targetCoords, streetName, vehicleName)
+--    print("Debug: Server received vehicleName =", vehicleName)
     local src = source
-    local message = string.format('~r~Vol de voiture en cours à~s~ %s.', streetName)
+    local message = string.format('~r~Vol de voiture en cours à ~s~ %s, véhicule : %s.', streetName, vehicleName)
     TriggerClientEvent('police_alerts:receiveRobberyAlert', -1, message, targetCoords)
-end)
-
-RegisterServerEvent('police_alerts:sendGunshotAlert')
-AddEventHandler('police_alerts:sendGunshotAlert', function(weaponName, coords)
-    TriggerClientEvent('police_alerts:receiveGunshotAlert', -1, weaponName, coords)
 end)
 
 RegisterServerEvent('police_alerts:sendRobberyAlert')
@@ -55,17 +51,43 @@ AddEventHandler('police_alerts:sendRobberyAlert', function(coords)
     TriggerClientEvent('police_alerts:receiveRobberyAlert', -1, message, coords)
 end)
 
+local config = {
+    AllowedJobs = {
+        'police',
+        'bcso'
+    },
+    GunshotAlert = true,
+    ShowCopsMisbehave = true,
+    AlertBlipDuration = 30000,
+    GunshotAlertCooldown = 40000, -- 40 seconds
+    Version = true
+}
+
 RegisterServerEvent('police_alerts:requestConfig')
 AddEventHandler('police_alerts:requestConfig', function()
     local src = source
-    local config = {
-        AllowedJobs = {
-            'police',
-            'bcso'
-        },
-        GunshotAlert = true,
-        ShowCopsMisbehave = true,
-        AlertBlipDuration = 30000
-    }
     TriggerClientEvent('police_alerts:getConfig', src, config)
 end)
+
+if config.Version then
+    local function GitHubUpdate()
+        PerformHttpRequest('https://raw.githubusercontent.com/Mizukuli/Alerts-Police/main/fxmanifest.lua',
+            function(error, result, headers)
+                local actual = GetResourceMetadata(GetCurrentResourceName(), 'version')
+
+                if not result then print("^6MIZU ALERT^7 - version couldn't be checked") end
+
+                local version = string.sub(result, string.find(result, "%d.%d.%d"))
+
+                if tonumber((version:gsub("%D+", ""))) > tonumber((actual:gsub("%D+", ""))) then
+                    print('^6MIZU ALERT^7 - The version ^2' ..
+                        version ..
+                        '^0 is available, you are still using version ^1' ..
+                        actual .. ', ^0Download the new version at: https://github.com/Mizukuli/Alerts-Police')
+                else
+                    print('^6MIZU ALERT^7 - You are using the latest version of the script.')
+                end
+            end)
+    end
+    GitHubUpdate()
+end
