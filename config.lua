@@ -6,7 +6,7 @@ Config = {
     },
     GunshotAlert = true,
     ShowCopsMisbehave = true,
-    AlertBlipDuration = 30000, -- 50 secondes (temps du blips sur la carte).
+    AlertBlipDuration = 30000, -- 30 secondes (temps du blips sur la carte).
     GunshotAlertCooldown = 50000, -- 50 secondes (avant la prochaine alerte).
     Version = true, -- MAJ Github.
     Framework = "1", -- "1" or "2", en fonction de votre configuration "2" = esx:getSharedObject
