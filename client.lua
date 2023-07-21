@@ -386,7 +386,7 @@ Citizen.CreateThread(function()
                         local vehicleName = GetModelNameFromHash(modelHash)
                         local streetName = GetStreetNameFromHashKey(GetStreetNameAtCoord(playerCoords.x, playerCoords.y, playerCoords.z))
 
-                        DecorSetInt(playerPed, 'isOutlaw', 2)
+                        DecorSetInt(playerPed, 'AndAvilln', 2)
                         
                         TriggerServerEvent('police_alerts:carJackInProgress', {
                             x = ESX.Math.Round(playerCoords.x, 1),
@@ -416,7 +416,7 @@ Citizen.CreateThread(function()
                             local vehicleName = GetModelNameFromHash(modelHash)
                             local streetName = GetStreetNameFromHashKey(GetStreetNameAtCoord(playerCoords.x, playerCoords.y, playerCoords.z))
                             
-                            DecorSetInt(playerPed, 'isOutlaw', 2)
+                            DecorSetInt(playerPed, 'AndAvilln', 2)
                             
                             TriggerServerEvent('police_alerts:carEntered', {
                                 x = ESX.Math.Round(playerCoords.x, 1),
