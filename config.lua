@@ -7,7 +7,7 @@ Config = {
     GunshotAlert = true,
     ShowCopsMisbehave = true,
     AlertBlipDuration = 30000, -- 30 secondes (temps du blips sur la carte).
-    GunshotAlertCooldown = 50000, -- 50 secondes (avant la prochaine alerte).
+    GunshotAlertCooldown = 50000, -- 50 secondes (avant la prochaine alerte de tir par joueur).
     Version = true, -- MAJ Github.
     Framework = "1", -- "1" or "2", en fonction de votre configuration "2" = esx:getSharedObject
     AlertOnCarJack = true, -- Activer ou désactiver l'alerte pour les véhicules avec PNJ. [Ne pas activer "AlertOnCarEntered" si celui-ci est déjà activé.]
