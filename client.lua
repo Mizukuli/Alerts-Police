@@ -1,9 +1,10 @@
--- ESX = nil
+-- Créé par Mizukuli.
 local ConfigLoaded = false
 local Config = {}
 local gunshotBlipData = {}
 local robberyBlipData = {}
-local ALERT_BLIP_DURATION = 30000
+local ALERT_BLIP_DURATION = nil
+local Config = require('config')
 
 local function requestConfig()
     TriggerServerEvent('police_alerts:requestConfig')
@@ -13,21 +14,21 @@ RegisterNetEvent('police_alerts:getConfig')
 AddEventHandler('police_alerts:getConfig', function(config)
     Config = config
     ConfigLoaded = true
-    ALERT_BLIP_DURATION = Config.AlertBlipDuration or ALERT_BLIP_DURATION
+    ALERT_BLIP_DURATION = Config.AlertBlipDuration
+
+    if Config.Framework == "1" then
+        ESX = exports['es_extended']:getSharedObject()
+    elseif Config.Framework == "2" then
+        Citizen.CreateThread(function()
+            while ESX == nil do
+                TriggerEvent("esx:getSharedObject", function(obj) ESX = obj end)
+                Citizen.Wait(100)
+            end
+        end)
+    end
 end)
 
 requestConfig()
-
-Citizen.CreateThread(function()
-    while not ESX do
-        ESX = exports["es_extended"]:getSharedObject()
-        Citizen.Wait(0)
-    end
-    while not ConfigLoaded or not ESX do
-        requestConfig()
-        Citizen.Wait(5000)
-    end
-end)
 
 AddEventHandler('onClientResourceStart', function(resourceName)
     if GetCurrentResourceName() ~= resourceName then
@@ -48,6 +49,93 @@ function isPlayerPolice()
     end
     return false
 end
+
+function openLibPoliceMenu()
+    local coords = GetEntityCoords(PlayerPedId())
+    lib.registerContext({
+        id = 'defcon_menu',
+        title = '🛡️ Menu Defcon 🛡️',
+        onExit = function()
+        end,
+        options = {
+            {
+                title = "Defcon Léger",
+                description = 'Pour déclencher une alerte de niveau léger',
+                icon = 'exclamation-circle',
+                onSelect = function()
+                    TriggerServerEvent('police_alerts:sendDistress', 'petit', coords)
+                end,
+            },
+            {
+                title = "Defcon Modéré",
+                description = 'Pour déclencher une alerte de niveau modéré',
+                icon = 'exclamation-triangle',
+                onSelect = function()
+                    TriggerServerEvent('police_alerts:sendDistress', 'moyen', coords)
+                end,
+            },
+            {
+                title = "Defcon Critique",
+                description = 'Pour déclencher une alerte de niveau critique',
+                icon = 'radiation',
+                onSelect = function()
+                    TriggerServerEvent('police_alerts:sendDistress', 'grand', coords)
+                end,
+            }
+        },
+    })
+    lib.showContext('defcon_menu')
+end
+
+function openEsxPoliceMenu()
+    local elements = {
+        {label = "Defcon Léger", value = 'petit'},
+        {label = "Defcon Modéré", value = 'moyen'},
+        {label = "Defcon Critique", value = 'grand'}
+    }
+
+    ESX.UI.Menu.CloseAll()
+
+    ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'defcon_menu',
+        {
+            title    = '🛡️ Menu Defcon 🛡️',
+            align    = 'top-left',
+            elements = elements
+        },
+        function(data, menu)
+            local val = data.current.value
+            if val then
+                local coords = GetEntityCoords(PlayerPedId())
+                TriggerServerEvent('police_alerts:sendDistress', val, coords)
+            end
+            menu.close()
+        end,
+        function(data, menu)
+            menu.close()
+        end
+    )
+end
+
+RegisterCommand('defconmenu', function()
+    if isPlayerPolice() then
+        if Config.MenuType == 'lib' then
+            openLibPoliceMenu()
+        elseif Config.MenuType == 'esx' then
+            openEsxPoliceMenu()
+        end
+    end
+end, false)
+
+function isJobAllowed(job)
+    for _, allowed_job in ipairs(Config.AllowedJobs) do
+        if job == allowed_job then
+            return true
+        end
+    end
+    return false
+end
+
+RegisterKeyMapping('defconmenu', 'Ouvrir le menu Defcon', 'keyboard', "F6")
 
 local function sendNotification(message, messageType, messageTimeout)
     messageType = messageType or "inform"
@@ -114,7 +202,7 @@ Citizen.CreateThread(function()
             end
         end
 
-        Citizen.Wait(100)
+        Citizen.Wait(50)
     end
 end)
 
@@ -183,7 +271,6 @@ end)
 
 RegisterNetEvent('police_alerts:receiveGunshotAlert')
 AddEventHandler('police_alerts:receiveGunshotAlert', function(weaponName, location)
---    print("Client a reçu l'alerte de coup de feu")
     local playerData = ESX.GetPlayerData()
     if not isPlayerPolice(playerData) or not weaponName or not location then
         return
@@ -239,6 +326,15 @@ AddEventHandler('police_alerts:receiveRobberyAlert', function(alertMessage, loca
     end)
 end)
 
+function isInTable(table, element)
+    for _, value in pairs(table) do
+        if value == element then
+            return true
+        end
+    end
+    return false
+end
+
 function GetModelNameFromHash(modelHash)
     if modelHash == nil or type(modelHash) ~= "number" then
         return "CARNOTFOUND"
@@ -264,17 +360,24 @@ function GetModelNameFromHash(modelHash)
 end
 
 Citizen.CreateThread(function()
+
+    local alertedForCurrentVehicle = false
+    local currentVehicle = nil
+
     while true do
         Citizen.Wait(3000)
 
         local playerPed = PlayerPedId()
         local playerCoords = GetEntityCoords(playerPed)
         local isPlayerWhitelisted = isPlayerPolice()
-
-        if (IsPedTryingToEnterALockedVehicle(playerPed) or IsPedJacking(playerPed)) then
+        
+        if Config.AlertOnCarJack and (IsPedTryingToEnterALockedVehicle(playerPed) or IsPedJacking(playerPed)) then
             local vehicle = GetVehiclePedIsTryingToEnter(playerPed)
 
             if vehicle and ((isPlayerWhitelisted and Config.ShowCopsMisbehave) or not isPlayerWhitelisted) then
+                currentVehicle = vehicle
+                alertedForCurrentVehicle = false
+                
                 local plate = ESX.Math.Trim(GetVehicleNumberPlateText(vehicle))
 
                 ESX.TriggerServerCallback('police_alerts:isVehicleOwner', function(owner)
@@ -283,9 +386,6 @@ Citizen.CreateThread(function()
                         local vehicleName = GetModelNameFromHash(modelHash)
                         local streetName = GetStreetNameFromHashKey(GetStreetNameAtCoord(playerCoords.x, playerCoords.y, playerCoords.z))
 
---                        print("modelHash : " .. modelHash)
---                        print("vehicleName : " .. vehicleName)
-                        
                         DecorSetInt(playerPed, 'isOutlaw', 2)
                         
                         TriggerServerEvent('police_alerts:carJackInProgress', {
@@ -297,5 +397,40 @@ Citizen.CreateThread(function()
                 end, plate)
             end
         end
+
+        if Config.AlertOnCarEntered and IsPedInAnyVehicle(playerPed, false) then
+            local vehicle = GetVehiclePedIsIn(playerPed, false)
+
+            if vehicle ~= currentVehicle then
+                alertedForCurrentVehicle = false
+                currentVehicle = vehicle
+            end
+
+            if vehicle and ((isPlayerWhitelisted and Config.ShowCopsMisbehave) or not isPlayerWhitelisted) and not alertedForCurrentVehicle then
+                local plate = ESX.Math.Trim(GetVehicleNumberPlateText(vehicle))
+            
+                if not isInTable(Config.CustomPlates, plate) then
+                    ESX.TriggerServerCallback('police_alerts:isVehicleOwner', function(owner)
+                        if not owner then
+                            local modelHash = GetEntityModel(vehicle)
+                            local vehicleName = GetModelNameFromHash(modelHash)
+                            local streetName = GetStreetNameFromHashKey(GetStreetNameAtCoord(playerCoords.x, playerCoords.y, playerCoords.z))
+                            
+                            DecorSetInt(playerPed, 'isOutlaw', 2)
+                            
+                            TriggerServerEvent('police_alerts:carEntered', {
+                                x = ESX.Math.Round(playerCoords.x, 1),
+                                y = ESX.Math.Round(playerCoords.y, 1),
+                                z = ESX.Math.Round(playerCoords.z, 1)
+                            }, streetName, vehicleName)
+            
+                            alertedForCurrentVehicle = true
+                        end
+                    end, plate)
+                end
+            end
+        end
     end
 end)
+
+-- Créé par Mizukuli.
