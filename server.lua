@@ -1,4 +1,15 @@
-ESX = exports["es_extended"]:getSharedObject()
+-- Créé par Mizukuli.
+if Config.Framework == "1" then
+    ESX = exports['es_extended']:getSharedObject()
+elseif Config.Framework == "2" then
+    ESX = nil
+    CreateThread(function()
+        while ESX == nil do
+            TriggerEvent("esx:getSharedObject", function(obj) ESX = obj end)
+            Wait(100)
+        end
+    end)
+end
 
 ESX.RegisterServerCallback('police_alerts:isVehicleOwner', function(source, cb, plate)
     local xPlayer = ESX.GetPlayerFromId(source)
@@ -15,7 +26,6 @@ ESX.RegisterServerCallback('police_alerts:isVehicleOwner', function(source, cb, 
         cb(false)
     end
 end)
-
 
 RegisterServerEvent('police_alerts:sendDistress')
 AddEventHandler('police_alerts:sendDistress', function(urgency, coords)
@@ -42,6 +52,14 @@ AddEventHandler('police_alerts:carJackInProgress', function(targetCoords, street
     TriggerClientEvent('police_alerts:receiveRobberyAlert', -1, message, targetCoords)
 end)
 
+RegisterServerEvent('police_alerts:carEntered')
+AddEventHandler('police_alerts:carEntered', function(targetCoords, streetName, vehicleName)
+    local src = source
+    local message = string.format('~r~ Une personne non identifiée est entrée dans un véhicule volé ~s~ %s ~r~à ~s~%s', vehicleName, streetName)
+
+    TriggerClientEvent('police_alerts:receiveRobberyAlert', -1, message, targetCoords)
+end)
+
 RegisterServerEvent('police_alerts:sendRobberyAlert')
 AddEventHandler('police_alerts:sendRobberyAlert', function(coords)
     local src = source
@@ -49,25 +67,13 @@ AddEventHandler('police_alerts:sendRobberyAlert', function(coords)
     TriggerClientEvent('police_alerts:receiveRobberyAlert', -1, message, coords)
 end)
 
-local config = {
-    AllowedJobs = {
-        'police',
-        'bcso'
-    },
-    GunshotAlert = true,
-    ShowCopsMisbehave = true,
-    AlertBlipDuration = 30000,
-    GunshotAlertCooldown = 40000, -- 40 seconds
-    Version = true
-}
-
 RegisterServerEvent('police_alerts:requestConfig')
 AddEventHandler('police_alerts:requestConfig', function()
     local src = source
-    TriggerClientEvent('police_alerts:getConfig', src, config)
+    TriggerClientEvent('police_alerts:getConfig', src, Config)
 end)
 
-if config.Version then
+if Config.Version then
     local function GitHubUpdate()
         PerformHttpRequest('https://raw.githubusercontent.com/Mizukuli/Alerts-Police/main/fxmanifest.lua',
             function(error, result, headers)
@@ -89,3 +95,5 @@ if config.Version then
     end
     GitHubUpdate()
 end
+
+-- Créé par Mizukuli.
