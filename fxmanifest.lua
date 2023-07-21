@@ -1,9 +1,12 @@
+-- Créé par Mizukuli.
 fx_version 'cerulean'
 game 'gta5'
 
-author 'Mizukulii#2227'
+author 'Mizukuli'
 description 'Système d\'alerte de la police'
-version '1.0.1'
+version '1.0.2'
+
+lua54 'yes'
 
 files {
     'sounds/dispatch.ogg',
@@ -11,12 +14,16 @@ files {
     'sounds/bipbip.ogg',
 }
 
-server_scripts {
-    'server.lua',
+shared_scripts {
+    '@ox_lib/init.lua',
+    'config.lua',
 }
 
 client_scripts {
     'client.lua',
 }
 
--- Créé par Mizukuli#2227
+server_scripts {
+    'server.lua',
+}
+-- Créé par Mizukuli.
